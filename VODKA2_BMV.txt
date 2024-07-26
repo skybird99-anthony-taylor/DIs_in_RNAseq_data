@@ -1,0 +1,46 @@
+# Copied VODKA2 folder to /storage/home/aat5490/scratch/samples_refs/BMV and gave permissions
+chmod -R +x .
+
+# Naming convention for the files MUST be "virus.length_of_virus.length_of_reads.fasta" otherwise nothing will work
+# Name of output MUST be the same as the input, minus the .fasta.
+# Part of the analysis script (the script that is generated with VODKA2_analysis_setup.sh) that you need to fix is to go to all instances of samplename= and change the | to the 1) to .fastq) or .fastq.gz)
+
+# Creating DBs + indexing
+bowtie2-build /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2.bmv_rna3.fasta bmv_rna3.fasta
+bwa index bmv_rna3.fasta
+
+perl genomefa_to_newfasta_cb_v2.pl /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv_rna3.fasta 2111 150 bmv.2111.150.fasta
+perl genomefa_to_newfasta_del_v2.pl /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv_rna3.fasta 2111 150 bmv.DEL.2111.150.fasta 5
+
+bowtie2-build --large-index bmv.2111.150.fasta bmv.2111.150
+
+bowtie2-build --large-index bmv.DEL.2111.150.fasta bmv.DEL.2111.150
+
+# Align to host and gzip sample folders
+bowtie-build bar_genomic.fna bar_genomic
+bwa index bar_genomic.fna
+bowtie-build bar_rna.fna bar_rna
+bwa index bar_rna.fna
+
+bowtie -p 4 --un unaligned_transc.fastq -x bar_rna SRR10119525.trimmed.fastq
+bowtie -p 4 --un unaligned_both.fastq -x bar_genomic unaligned_transc.fastq
+gzip unaligned_both.fastq
+
+# Create a .txt file with the samples (+ filepath) and call it 'samples.txt' + set up analysis
+# Be sure to edit the analysis setup script to remove /VODKA2/ from search1.pl, organize.pl, and VODKA2_species_plot.R
+
+ls unaligned_both.fastq.gz > samples.txt
+
+bash VODKA2_analysis_setup.sh -f /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/samples.txt -d /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv.2111.150 -v /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv_rna3.fasta -p CB_RNA3 - DONE
+bash VODKA2_analysis_setup.sh -f /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/samples.txt -d /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv.DEL.2111.150 -v /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv_rna3.fasta -p DEL_RNA3 
+
+# Check analysis script to make sure there's no aberrant prefixes
+# Delete the making of a new database at the beginning: we've already done that, it's a waste of time
+# Make sure all the bowtie2 databases are referenced correctly
+# Copy VODKA2_species_plot.R, blast.pl and report.pl to the generated results folder (blast.pl will be in the SAMPLE_dvg folder, report will be in the base. Species plot will not function) (you'll have to do this PRIOR to running ./SCRIPT)
+# Run analysis scripts
+
+./cbDVG_analysis_CB_RNA3.sh
+./delDVG_analysis_DEL_RNA3.sh
+
+# The 'summary' file will always show 0. Either read the file ending in N5 (if one was created), or go to the results folder > vodka2_output > the folder(s) in there > results > read the .txt file)
