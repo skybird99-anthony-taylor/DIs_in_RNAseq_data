@@ -1,0 +1,2 @@
+>DI-2 [organism=cymbidium_ringspot_virus]
+TCTAGGTTGGAGGAAGCAGGGTGGAAACCAACCAAGACAC

@@ -1,0 +1,2 @@
+>D_RNA_3B [organism=cucumber_mosaic_virus]
+GTTCCCGAAGTAACCCACATTGGGTATACCGGTACC

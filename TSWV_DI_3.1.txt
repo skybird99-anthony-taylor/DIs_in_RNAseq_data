@@ -1,0 +1,2 @@
+>DI-3.1 [organism=tomato_spotted_wilt_virus]
+ATCTAGCTTTGGATTTACATAATGCATGCTGTCTATGGA

@@ -1,0 +1,2 @@
+>Additional_1.2kb_RNA_c [organism=clover_yellow_mosaic_virus]
+ATAGATGGAAATCTTGCT

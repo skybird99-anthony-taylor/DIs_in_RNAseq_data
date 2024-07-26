@@ -1,0 +1,2 @@
+>DI-13 [organism=cymbidium_ringspot_virus] 
+AGCTGTGGAGAGTCTGCATAGAAGGCACTGAAGCCTTCAA
