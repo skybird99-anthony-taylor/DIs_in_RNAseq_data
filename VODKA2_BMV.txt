@@ -1,14 +1,14 @@
 # Copied VODKA2 folder to /storage/home/aat5490/scratch/samples_refs/BMV and gave permissions
 chmod -R +x .
 
-# Naming convention for the files MUST be "virus.length_of_virus.length_of_reads.fasta" otherwise nothing will work
-# Name of output MUST be the same as the input, minus the .fasta.
 # Part of the analysis script (the script that is generated with VODKA2_analysis_setup.sh) that you need to fix is to go to all instances of samplename= and change the | to the 1) to .fastq) or .fastq.gz)
 
 # Creating DBs + indexing
 bowtie2-build /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2.bmv_rna3.fasta bmv_rna3.fasta
 bwa index bmv_rna3.fasta
 
+# Naming convention for the files MUST be "virus.length_of_virus.length_of_reads.fasta" otherwise nothing will work
+# Name of output MUST be the same as the input, minus the .fasta.
 perl genomefa_to_newfasta_cb_v2.pl /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv_rna3.fasta 2111 150 bmv.2111.150.fasta
 perl genomefa_to_newfasta_del_v2.pl /storage/home/aat5490/scratch/samples_refs/BMV/VODKA2/bmv_rna3.fasta 2111 150 bmv.DEL.2111.150.fasta 5
 
