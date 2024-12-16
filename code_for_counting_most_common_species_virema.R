@@ -1,99 +1,45 @@
 # Load necessary libraries
 library(readr)
 library(dplyr)
-library(stringr)
+library(writexl)
 library(tidyr)
+library(tidyverse)
 
-# Function to process each file
-process_file <- function(file_path) {
-  # Read the file into a dataframe
-  df <- read_delim(file_path, delim = "\t", col_names = FALSE)
-  
-  # Convert dataframe to a single character vector for pattern matching
-  text_lines <- unlist(df)
-  
-  # Define the pattern to search for
-  pattern <- "\\b(\\d+)_to_(\\d+)_#_\\d+\\b"
-  
-  # Extract all matches for the pattern
-  matches <- str_extract_all(text_lines, pattern)
-  
-  # Flatten the list of matches into a single vector
-  matches <- unlist(matches)
-  
-  # Create a dataframe with the hit and file columns
-  hits_df <- data.frame(
-    hit = matches,
-    file = file_path,
-    stringsAsFactors = FALSE
-  )
-  
-  return(hits_df)
-}
+# Import combined file, transformed with the simicolon_to_linebreak.R file
 
-# Specify the directory containing the text files
-directory <- "E:\\DI_bioinformatics_data\\Results\\BMV\\ViReMa"
+# Create new df using the two relevant columns from the combined file
+junctions <- combined_deletions3 %>% select(BP_Pos,RI_Pos)
+junctions$ID <- paste(junctions$BP_Pos, junctions$RI_Pos, sep = "_")
 
-# Get a list of all text files in the directory
-text_files <- list.files(directory, pattern = "\\.txt$", full.names = TRUE)
+# Count occurrences of each Coordinate ID and append as a new column, arrange in descending order
+junctions <- junctions %>%
+  group_by(ID) %>%
+  mutate(Count = n()) %>%
+  ungroup() %>%
+  arrange(desc(Count))
 
-# Process each file and combine the results
-all_hits <- bind_rows(lapply(text_files, process_file))
+# Keep only one instance of each coordinate ID
+junctions_filtered <- junctions %>%
+  distinct(ID, .keep_all = TRUE)  # Keep one instance of each Coordinate_ID
 
-# Remove the _#_NUMBER portion from the hits
-all_hits$hit <- str_remove(all_hits$hit, "_#_\\d+$")
+# Click on df and remove all counts smaller than the largest value
+junctions_filtered <- junctions_filtered %>%
+  filter(Count >= 3) %>%  # Click on the df to see what the max number is, and set that
+  distinct(ID, .keep_all = TRUE) 
 
-# Remove the _to_ portion to get just NUMBERNUMBER
-all_hits$hit <- str_replace_all(all_hits$hit, "_to_", "_")
+# Histogram + dplyr filters for help manually binning. The goal is to whittle down to the biggest bin.
+# If all the BP is the vame value but the RI is different, this is useful. Same if it's vice-versa.
+# Otherwise you have to fiddle with it.
+ggplot(junctions_filtered, aes(x = BP_Pos)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  stat_bin(
+    binwidth = 10, 
+    aes(label = after_stat(count)), 
+    geom = "text", 
+    vjust = -0.5, 
+    color = "red"
+  ) +
+  labs(title = "Histogram with Bin Labels", x = "RI", y = "Frequency")
 
-# Function to split 'hit' into 'BP' and 'RI' and convert to integers
-process_hits <- function(all_hits) {
-  all_hits <- all_hits %>%
-    # Split 'hit' into 'BP' and 'RI' based on '_'
-    separate(hit, into = c("BP", "RI"), sep = "_", convert = TRUE) %>%
-    # Convert 'BP' and 'RI' from character to integer
-    mutate(BP = as.integer(BP),
-           RI = as.integer(RI))
-  
-  return(all_hits)
-}
-
-# Apply the function to the dataframe
-all_hits_processed <- process_hits(all_hits)
-
-# Function to find unique junctions with wiggle room and count occurrences
-find_common_junctions <- function(df, wiggle_room = 5) {
-  # Sort the dataframe by BP and RI
-  df_sorted <- df %>%
-    arrange(BP, RI)
-  
-  # Initialize a column to mark junction groups
-  df_sorted <- df_sorted %>%
-    mutate(junction_id = cumsum(
-      (BP - lag(BP, default = first(BP)) > wiggle_room) |
-        (RI - lag(RI, default = first(RI)) > wiggle_room)
-    ))
-  
-  # Group by junction_id and count occurrences of each unique junction
-  junctions_count <- df_sorted %>%
-    group_by(BP, RI, junction_id) %>%
-    summarize(count = n(), .groups = 'drop') %>%
-    arrange(desc(count))  # Sort by the count to identify the most common species
-  
-  return(junctions_count)
-}
-
-# Apply the function to the dataframe
-common_junctions <- find_common_junctions(all_hits_processed)
-
-# Print the sorted junction counts (most common first)
-print("Junctions sorted by occurrence:")
-print(common_junctions)
-
-# Find the most common species
-most_common_species <- common_junctions %>%
-  slice(1)  # Select the first row (the most common species)
-
-# Print the most common species
-cat("Most common species found:\n")
-print(most_common_species)
+junctions_filtered <- junctions_filtered %>%
+  filter(RI_Pos > 2985) # Example RI is 2,985
