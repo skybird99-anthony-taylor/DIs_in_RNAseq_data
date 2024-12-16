@@ -2,65 +2,44 @@
 library(readr)
 library(dplyr)
 library(writexl)
+library(tidyr)
+library(tidyverse)
 
-# Define the wiggle room
-wiggle_room <- 5
+# Import combined file
 
-# Function to bin a value within the wiggle room
-bin_position <- function(value, wiggle_room) {
-  return(round(value / wiggle_room))  # Bins the position based on the wiggle room
-}
+# Create new df using the two relevant columns from the combined file
+junctions <- combined_deletions %>% select(BP_Pos,RI_Pos)
+junctions$ID <- paste(junctions$BP_Pos, junctions$RI_Pos, sep = "_")
 
-# Function to bin the data and count unique species with frequencies
-bin_and_count_unique_species <- function(df, wiggle_room) {
-  df <- df %>%
-    mutate(
-      BP_Pos_bin = bin_position(BP_Pos, wiggle_room),
-      RI_Pos_bin = bin_position(RI_Pos, wiggle_room)
-    )
-  
-  species_counts <- df %>%
-    group_by(BP_Pos_bin, RI_Pos_bin) %>%
-    tally()  # Count occurrences of each unique species
-  
-  return(species_counts)
-}
+# Count occurrences of each Coordinate ID and append as a new column, arrange in descending order
+junctions <- junctions %>%
+  group_by(ID) %>%
+  mutate(Count = n()) %>%
+  ungroup() %>%
+  arrange(desc(Count))
 
-# Specify the directory containing the text files
-directory <- "E:\\DI_bioinformatics_data\\Results\\BMV\\DItector_outputs\\txt_files"
+# Keep only one instance of each coordinate ID
+junctions_filtered <- junctions %>%
+  distinct(ID, .keep_all = TRUE)  # Keep one instance of each Coordinate_ID
 
-# Get a list of all text files in the directory
-text_files <- list.files(directory, pattern = "\\.txt$", full.names = TRUE)
+# Click on df and remove all counts smaller than the largest value, example here is 10
+junctions_filtered <- junctions_filtered %>%
+  filter(Count >= 10) %>%  # Click on the df to see what the max number is, and set that. Example here is 10.
+  distinct(ID, .keep_all = TRUE) 
 
-# Print the list of files for debugging
-cat("Text Files Found:\n")
-print(text_files)
+# Histogram + dplyr filters for help manually binning. The goal is to whittle down to the biggest bin.
+# If all the BP is the vame value but the RI is different, this is useful. Same if it's vice-versa.
+# Otherwise you have to fiddle with it.
+ggplot(junctions_filtered, aes(x = BP_Pos)) +
+  geom_histogram(binwidth = 10, fill = "skyblue", color = "black") +
+  stat_bin(
+    binwidth = 10, 
+    aes(label = after_stat(count)), 
+    geom = "text", 
+    vjust = -0.5, 
+    color = "red"
+  ) +
+  labs(title = "Histogram with Bin Labels", x = "RI", y = "Frequency")
 
-# Search each file for the unique species and collect the results with counts
-all_species_counts <- data.frame(File = character(), BP_Pos_bin = integer(), RI_Pos_bin = integer(), n = integer(), stringsAsFactors = FALSE)
-for (file in text_files) {
-  cat("Processing file:", file, "\n")  # Debugging statement
-  df <- read_delim(file, delim = "\t", col_types = cols(BP_Pos = col_double(), RI_Pos = col_double()))  # Ensure columns are numeric
-  
-  # Check if the dataframe has the necessary columns
-  if (!all(c("BP_Pos", "RI_Pos") %in% colnames(df))) {
-    cat("File", file, "does not contain required columns 'BP_Pos' and 'RI_Pos'. Skipping...\n")
-    next
-  }
-  
-  species_counts <- bin_and_count_unique_species(df, wiggle_room)
-  
-  if (nrow(species_counts) > 0) {
-    species_counts <- mutate(species_counts, File = file)
-    all_species_counts <- rbind(all_species_counts, species_counts)
-  } else {
-    cat("No unique species found in file:", file, "\n")
-  }
-}
-
-# Optionally, write the sorted results to an Excel file
-output_file <- "E:\\DI_bioinformatics_data\\Results\\BMV\\DItector_outputs\\species_counts_results_ditector.xlsx"
-write_xlsx(species_counts, output_file)
-
-# Print the working directory and output file path
-cat("Results written to", file.path(getwd(), output_file), "\n")
+junctions_filtered <- junctions_filtered %>%
+  filter(BP_Pos < 695) # Example BP value of 695
